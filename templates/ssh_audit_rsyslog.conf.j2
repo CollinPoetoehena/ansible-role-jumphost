@@ -1,0 +1,7 @@
+# Managed by Ansible — do not edit manually
+# Role: ansible-role-jumphost
+# Forward all sshd messages to the dedicated SSH audit log file.
+if $programname == 'sshd' then {
+    action(type="omfile" file="{{ audit_log_path }}")
+    stop
+}

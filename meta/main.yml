@@ -1,0 +1,6 @@
+galaxy_info:
+  author: CollinPoetoehena
+  description: Jump host configuration role for secure access to the infrastructure.
+  min_ansible_version: 2.9
+  platforms:
+    - name: EL # EL for Enterprise Linux (RHEL, CentOS, AlmaLinux, Rocky Linux, etc., but mainly RHEL)

@@ -1,0 +1,42 @@
+---
+# Firewall tasks for jumphost
+
+- name: Ensure firewalld is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld is enabled and started
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+# When the CIDR is not open, remove the generic SSH service and add a
+# source-restricted rich rule instead so only the allowed range can connect.
+- name: Remove open SSH service from public zone (replacing with source-restricted rich rule)
+  ansible.posix.firewalld:
+    service: ssh
+    zone: public
+    state: disabled
+    permanent: true
+    immediate: true
+  when: allow_ssh_from_cidr != "0.0.0.0/0"
+
+- name: Allow SSH from any source
+  ansible.posix.firewalld:
+    service: ssh
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+  when: allow_ssh_from_cidr == "0.0.0.0/0"
+
+- name: Allow SSH only from restricted CIDR
+  ansible.posix.firewalld:
+    rich_rule: "rule family='ipv4' source address='{{ allow_ssh_from_cidr }}' service name='ssh' accept"
+    zone: public
+    state: enabled
+    permanent: true
+    immediate: true
+  when: allow_ssh_from_cidr != "0.0.0.0/0"

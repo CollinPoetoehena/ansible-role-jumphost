@@ -1,0 +1,22 @@
+---
+# vars file for roles/jump_host
+# Internal role variables — not intended to be overridden by the user
+
+# Packages not needed on a minimal jumphost
+jumphost_unnecessary_packages:
+  - telnet
+  - rsh
+  - rsh-server
+  - ypbind
+  - ypserv
+  - tftp
+  - tftp-server
+  - talk
+  - talk-server
+
+# Services not needed on a minimal jumphost
+jumphost_unnecessary_services:
+  - avahi-daemon
+  - cups
+  - rpcbind
+  - nfs-server

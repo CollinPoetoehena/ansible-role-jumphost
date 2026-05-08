@@ -1,0 +1,55 @@
+---
+# Audit logging tasks for jumphost
+
+- name: Ensure audit and rsyslog packages are installed
+  ansible.builtin.package:
+    name:
+      - audit
+      - rsyslog
+    state: present
+
+- name: Ensure auditd is enabled and started
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
+
+- name: Deploy SSH audit rules for auditd
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/ssh.rules
+    owner: root
+    group: root
+    mode: "0640"
+    content: |
+      # Watch sshd_config for unauthorized modifications
+      -w /etc/ssh/sshd_config -p wa -k sshd_config_change
+      # Watch PAM SSH configuration
+      -w /etc/pam.d/sshd -p wa -k pam_sshd_change
+      # Watch SSH host keys
+      -w /etc/ssh/ -p wa -k ssh_host_keys
+  notify: Reload audit rules
+
+- name: Ensure SSH audit log directory exists
+  ansible.builtin.file:
+    path: "{{ audit_log_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy rsyslog config to forward SSH logs to dedicated audit file
+  ansible.builtin.template:
+    src: ssh_audit_rsyslog.conf.j2
+    dest: /etc/rsyslog.d/10-ssh-audit.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Deploy logrotate config for SSH audit log
+  ansible.builtin.template:
+    src: ssh_audit_logrotate.j2
+    dest: /etc/logrotate.d/ssh-audit
+    owner: root
+    group: root
+    mode: "0644"

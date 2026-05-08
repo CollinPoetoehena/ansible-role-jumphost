@@ -1,0 +1,45 @@
+# Managed by Ansible — do not edit manually
+# Role: ansible-role-jumphost
+
+Port {{ ssh_port }}
+AddressFamily any
+ListenAddress 0.0.0.0
+
+# Logging — VERBOSE logs the fingerprint of every key used for authentication
+SyslogFacility AUTHPRIV
+LogLevel VERBOSE
+
+# Authentication
+LoginGraceTime {{ ssh_login_grace_time }}
+PermitRootLogin no
+StrictModes yes
+MaxAuthTries {{ ssh_max_auth_tries }}
+MaxSessions {{ ssh_max_sessions }}
+
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+
+UsePAM yes
+
+# Forwarding — agent forwarding required for hopping to cluster nodes;
+# TCP and X11 tunnelling are disabled to minimize attack surface
+AllowAgentForwarding {{ 'yes' if enable_ssh_agent_forwarding else 'no' }}
+AllowTcpForwarding no
+X11Forwarding no
+
+# Session keepalive — disconnect idle sessions after (interval * count_max) seconds
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+{% if ssh_allowed_users | length > 0 %}
+# Restrict SSH access to allowed users only
+AllowUsers {{ ssh_allowed_users | join(' ') }}
+{% endif %}
+
+# Misc
+AcceptEnv LANG LC_*
+PrintLastLog yes
+Banner none
