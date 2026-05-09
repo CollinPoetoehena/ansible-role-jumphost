@@ -1,6 +1,11 @@
 ---
 # Audit logging tasks for jumphost
 
+# Install the audit daemon (auditd), which provides kernel-level logging of
+# security-relevant events such as logins, sudo usage, file modifications,
+# privilege escalation, and executed commands.
+# And: ensure rsyslog is installed. This is the system logging daemon responsible
+# for collecting logs and forwarding them to remote destinations.
 - name: Ensure audit and rsyslog packages are installed
   ansible.builtin.package:
     name:
@@ -8,26 +13,98 @@
       - rsyslog
     state: present
 
-- name: Ensure auditd is enabled and started
-  ansible.builtin.service:
+# Enable and start rsyslog so it begins processing logs immediately and
+# persists across reboots.
+- name: Ensure rsyslog is running
+  service:
+    name: rsyslog
+    state: started
+    enabled: true
+
+# Ensure auditd is running and enabled at boot so that logging starts early
+# in the boot process and persists across reboots.
+- name: Ensure auditd is running
+  service:
     name: auditd
     state: started
     enabled: true
 
-- name: Deploy SSH audit rules for auditd
+# Deploy a hardened audit ruleset. These rules tell the Linux kernel exactly
+# which actions to log. Each rule below is explained in detail.
+- name: Deploy audit rules
   ansible.builtin.copy:
-    dest: /etc/audit/rules.d/ssh.rules
+    dest: /etc/audit/rules.d/jumphost.rules
     owner: root
     group: root
     mode: "0640"
     content: |
-      # Watch sshd_config for unauthorized modifications
-      -w /etc/ssh/sshd_config -p wa -k sshd_config_change
-      # Watch PAM SSH configuration
-      -w /etc/pam.d/sshd -p wa -k pam_sshd_change
+      #######################################################################
+      # Log modifications to /etc/passwd (user accounts database).
+      # -w = watch file
+      # -p wa = log writes and attribute changes
+      # -k identity = tag logs with "identity" for easy searching
+      #######################################################################
+      -w /etc/passwd -p wa -k identity
+
+      #######################################################################
+      # Log modifications to /etc/shadow (password hashes).
+      # This is extremely sensitive — any change should be audited.
+      #######################################################################
+      -w /etc/shadow -p wa -k identity
+
+      #######################################################################
+      # Log changes to /etc/sudoers (sudo permissions).
+      # Unauthorized changes here could grant root access.
+      #######################################################################
+      -w /etc/sudoers -p wa -k sudoers
+
+      #######################################################################
+      # Log changes to authentication logs.
+      # This helps detect brute-force attempts, failed logins, and anomalies.
+      #######################################################################
+      -w /var/log/secure -p wa -k auth
+
+      #######################################################################
+      # Log changes to system logs. Attackers often try to tamper with logs.
+      #######################################################################
+      -w /var/log/messages -p wa -k syslog
+
+      #######################################################################
+      # Log execution of the sudo binary itself.
+      # -p x = log execution attempts
+      # This captures every sudo command run by any user.
+      #######################################################################
+      -w /usr/bin/sudo -p x -k sudo
+
+      #######################################################################
+      # Log modifications to the SSH daemon configuration.
+      # Any change to sshd_config could weaken security or enable backdoors.
+      #######################################################################
+      -w /etc/ssh/sshd_config -p wa -k sshd
+
+      #######################################################################
       # Watch SSH host keys
+      # Any change to host keys could indicate a potential compromise.
+      #######################################################################
       -w /etc/ssh/ -p wa -k ssh_host_keys
-  notify: Reload audit rules
+
+      #######################################################################
+      # Log every executed command on the system.
+      # -a always,exit = log on every syscall exit
+      # -S execve = capture command execution
+      # This provides full traceability of admin actions on a jumphost.
+      # NOTE: This generates a lot of logs but is extremely valuable.
+      #######################################################################
+      -a always,exit -F arch=b64 -S execve -k exec
+
+      #######################################################################
+      # Make audit rules immutable.
+      # -e 2 = lock the audit configuration so even root cannot disable it
+      # until the system is rebooted.
+      # This prevents attackers from turning off audit logging.
+      #######################################################################
+      -e 2
+  notify: Reload audit rules # Reload audit rules so they take effect immediately.
 
 - name: Ensure SSH audit log directory exists
   ansible.builtin.file:
@@ -39,17 +116,9 @@
 
 - name: Deploy rsyslog config to forward SSH logs to dedicated audit file
   ansible.builtin.template:
-    src: ssh_audit_rsyslog.conf.j2
+    src: ssh_audit_rsyslog.conf.j2 # Use the template from the /templates directory for this
     dest: /etc/rsyslog.d/10-ssh-audit.conf
     owner: root
     group: root
     mode: "0644"
-  notify: Restart rsyslog
-
-- name: Deploy logrotate config for SSH audit log
-  ansible.builtin.template:
-    src: ssh_audit_logrotate.j2
-    dest: /etc/logrotate.d/ssh-audit
-    owner: root
-    group: root
-    mode: "0644"
+  notify: Restart rsyslog # Restart rsyslog so the new config takes effect immediately

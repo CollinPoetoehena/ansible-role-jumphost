@@ -20,11 +20,15 @@ It has the following features:
 
 ## Variables
 
+- You must define the variable `ssh_allowed_ip` (e.g., in your inventory, group_vars, or vault) in your project. This role does not set or store this value. **Important:**
+  - Do **not** define or commit this variable in the role itself.
+  - The role expects `ssh_allowed_ip` to be set by the playbook or inventory that includes this role.
+  - This keeps sensitive information out of the role and under your project's control (ssh).
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `jump_host_user` | `"azureuser"` | OS user account on the jump host |
 | `jump_host_ssh_keys_path` | `"/home/{{ jump_host_user }}/.ssh"` | Path to the SSH keys directory on the jump host |
-| `ssh_port` | `22` | SSH port to listen on |
 | `enable_ssh_agent_forwarding` | `true` | Enable SSH agent forwarding (required for Ansible to reach cluster nodes via jump host) |
 | `ssh_allowed_users` | `["{{ jump_host_user }}"]` | List of OS users permitted to log in via SSH; empty list allows all users |
 | `ssh_max_sessions` | `10` | Maximum number of concurrent SSH sessions |
@@ -32,7 +36,6 @@ It has the following features:
 | `ssh_max_auth_tries` | `3` | Maximum authentication attempts per connection |
 | `ssh_client_alive_interval` | `300` | Keepalive interval in seconds; idle sessions are disconnected after `interval × count_max` |
 | `ssh_client_alive_count_max` | `2` | Number of unanswered keepalives before the session is terminated |
-| `allow_ssh_from_cidr` | `"0.0.0.0/0"` | Source CIDR allowed to reach the SSH port via firewalld; set to a specific range to restrict access |
 | `enable_ssh_audit_logging` | `true` | Enable dedicated audit logging for SSH connections |
 | `audit_log_path` | `"/var/log/ssh-audit.log"` | Path to the SSH audit log file (rotated daily, kept for 30 days) |
 

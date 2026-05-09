@@ -9,27 +9,7 @@
     group: "{{ jump_host_user }}"
     mode: "0700"
 
-- name: Ensure policycoreutils-python-utils is present for SELinux port management
-  ansible.builtin.package:
-    name: policycoreutils-python-utils
-    state: present
-  when:
-    - ssh_port != 22
-    - ansible_selinux.status == 'enabled'
-
-- name: Allow non-standard SSH port in SELinux
-  ansible.builtin.command:
-    cmd: semanage port -a -t ssh_port_t -p tcp {{ ssh_port }}
-  register: semanage_result
-  changed_when: semanage_result.rc == 0
-  failed_when:
-    - semanage_result.rc != 0
-    - "'already defined' not in semanage_result.stderr"
-  when:
-    - ssh_port != 22
-    - ansible_selinux.status == 'enabled'
-
-- name: Deploy hardened sshd_config
+- name: Deploy hardened sshd_config (the configuration used by SSH daemon)
   ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config

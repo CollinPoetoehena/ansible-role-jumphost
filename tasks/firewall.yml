@@ -1,5 +1,9 @@
 ---
 # Firewall tasks for jumphost
+# NOTE: this role assumes you use an Azure environment, so the subnet (or another network level) 
+# should have an NSG with appropriate rules, such as only allowing access from a specific subnet, etc.
+# These firewall configurations are meant to be a secondary layer of defense, not the primary one, so they 
+# are kept simple and not too restrictive.
 
 - name: Ensure firewalld is installed
   ansible.builtin.package:
@@ -12,31 +16,34 @@
     state: started
     enabled: true
 
-# When the CIDR is not open, remove the generic SSH service and add a
-# source-restricted rich rule instead so only the allowed range can connect.
-- name: Remove open SSH service from public zone (replacing with source-restricted rich rule)
-  ansible.posix.firewalld:
-    service: ssh
-    zone: public
-    state: disabled
+# Specific rule to restrict SSH access to only a known IP address (e.g. an administrator's IP)
+# /32 is used to specify a single IP address, ensuring it is always just this one IP that can access SSH, 
+# regardless of the subnet mask of the variable provided.
+- name: Allow SSH only from specific IP
+  firewalld:
+    rich_rule: 'rule family="ipv4" source address="{{ ssh_allowed_ip }}/32" service name="ssh" accept'
     permanent: true
-    immediate: true
-  when: allow_ssh_from_cidr != "0.0.0.0/0"
-
-- name: Allow SSH from any source
-  ansible.posix.firewalld:
-    service: ssh
-    zone: public
     state: enabled
-    permanent: true
     immediate: true
-  when: allow_ssh_from_cidr == "0.0.0.0/0"
 
-- name: Allow SSH only from restricted CIDR
-  ansible.posix.firewalld:
-    rich_rule: "rule family='ipv4' source address='{{ allow_ssh_from_cidr }}' service name='ssh' accept"
-    zone: public
-    state: enabled
+# This allows SSH but only ssh_max_sessions connection attempts per minute
+# Slows down brute‑force attacks. Works even if NSG is misconfigured
+# Protects against internal lateral movement
+- name: Add rate limiting
+  firewalld:
+    rich_rule: 'rule service name="ssh" limit value="{{ ssh_max_sessions }}/m" accept'
     permanent: true
+    state: enabled
     immediate: true
-  when: allow_ssh_from_cidr != "0.0.0.0/0"
+
+# Setting the default zone to "drop" turns the firewall into a deny‑all baseline.
+# Any inbound traffic that does not explicitly match an allow rule is silently discarded.
+# - No response is sent back (unlike REJECT), making the host harder to scan or fingerprint.
+# - Protects against accidental service exposure (e.g., if a package opens a port).
+# - Ensures that only explicitly allowed services (like SSH) are reachable.
+# - Provides defense‑in‑depth even if Azure NSG rules are misconfigured.
+# This is the most restrictive and secure zone, ideal for a hardened jumphost.
+# Ansible's firewalld module does NOT support this directly, so we use
+# firewall-cmd via a command task.
+- name: Set default firewalld zone to drop
+  command: firewall-cmd --set-default-zone=drop

@@ -6,7 +6,6 @@ jump_host_user: "azureuser"
 
 # SSH configuration
 jump_host_ssh_keys_path: "/home/{{ jump_host_user }}/.ssh"
-ssh_port: 22
 # Required for Ansible control node to access cluster nodes via jump host
 enable_ssh_agent_forwarding: true
 # Users allowed to log in via SSH; empty list allows all users
@@ -19,10 +18,6 @@ ssh_login_grace_time: 60
 ssh_max_auth_tries: 3
 ssh_client_alive_interval: 300
 ssh_client_alive_count_max: 2
-
-# Firewall rules
-# TODO: Restrict this more?!?!
-allow_ssh_from_cidr: "0.0.0.0/0"
 
 # Logging and auditing
 enable_ssh_audit_logging: true
