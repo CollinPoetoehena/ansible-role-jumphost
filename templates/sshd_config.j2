@@ -37,12 +37,11 @@ ChallengeResponseAuthentication no
 # Enable Pluggable Authentication Modules (PAM) for additional authentication policies
 UsePAM yes
 
-# Forwarding settings
+# Forwarding — agent forwarding required for hopping to cluster nodes;
 # Allow agent forwarding if enabled (required for hopping to cluster nodes)
 AllowAgentForwarding {{ 'yes' if enable_ssh_agent_forwarding else 'no' }}
-# Disable TCP forwarding to minimize attack surface
-AllowTcpForwarding no
-# Disable X11 forwarding to minimize attack surface
+# TCP forwarding must be enabled for ProxyJump (-J) to work; X11 is disabled to minimize attack surface
+AllowTcpForwarding yes
 X11Forwarding no
 
 # Session keepalive settings
