@@ -36,14 +36,14 @@
     state: enabled
     immediate: true
 
-# Setting the default zone to "drop" turns the firewall into a deny‑all baseline.
-# Any inbound traffic that does not explicitly match an allow rule is silently discarded.
-# - No response is sent back (unlike REJECT), making the host harder to scan or fingerprint.
-# - Protects against accidental service exposure (e.g., if a package opens a port).
-# - Ensures that only explicitly allowed services (like SSH) are reachable.
-# - Provides defense‑in‑depth even if Azure NSG rules are misconfigured.
-# This is the most restrictive and secure zone, ideal for a hardened jumphost.
-# Ansible's firewalld module does NOT support this directly, so we use
-# firewall-cmd via a command task.
-- name: Set default firewalld zone to drop
-  command: firewall-cmd --set-default-zone=drop
+# Old setup (kept as a reference only), above setup is enough: deny-all baseline firewall zone:
+# Removed because: SSH breaks after this because your firewalld rules are added to the wrong zone, and then you set the default zone to drop, which silently discards SSH. In short: allow‑SSH rules end up in public, but the active zone becomes drop, so nothing lets SSH through.
+# You can check the firewall zones with `sudo su` to become root and then: `firewall-cmd --get-default-zone` and `firewall-cmd --get-active-zones` and `firewall-cmd --list-all` to see which rules are in which zones, and how the default zone is set
+# # Setting the default zone to "drop" turns the firewall into a deny‑all baseline.
+# # Any inbound traffic that does not explicitly match an allow rule is silently discarded.
+# # - No response is sent back (unlike REJECT), making the host harder to scan or fingerprint.
+# # - Protects against accidental service exposure (e.g., if a package opens a port).
+# # - Ensures that only explicitly allowed services (like SSH) are reachable.
+# # - Provides defense‑in‑depth even if Azure NSG rules are misconfigured.
+# - name: Set default firewalld zone to drop
+#   command: firewall-cmd --set-default-zone=drop

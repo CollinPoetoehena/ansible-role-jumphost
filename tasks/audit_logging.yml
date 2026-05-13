@@ -1,5 +1,11 @@
 ---
 # Audit logging tasks for jumphost
+# You can check logs after configuring this task with for example:
+#   `less /var/log/audit/audit.log` to see all audit logs
+#   `sudo ausearch -k identity` to see all logs tagged with "identity" (e.g., changes to /etc/passwd and /etc/shadow)
+#   `sudo ausearch -k sudo` to see all logs tagged with "sudo" (e.g., sudo command executions and changes to sudoers)
+#   `sudo ausearch -k sshd` to see all logs tagged with "sshd" (e.g., changes to sshd_config)
+#   `sudo ausearch -k ssh_host_keys` to see all logs tagged with "ssh_host_keys" (e.g., changes to SSH host keys)
 
 # Install the audit daemon (auditd), which provides kernel-level logging of
 # security-relevant events such as logins, sudo usage, file modifications,
