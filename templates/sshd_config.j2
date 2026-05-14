@@ -1,0 +1,59 @@
+# Managed by Ansible — do not edit manually
+# Role: ansible-role-jumphost
+
+# SSH daemon configuration for hardened jumphost
+
+# Listen on the default SSH port
+Port 22
+# Listen on all network interfaces
+ListenAddress 0.0.0.0
+
+# LogLevel VERBOSE logs the fingerprint of every key used for authentication (aids in auditing)
+LogLevel VERBOSE
+
+# Authentication settings
+# Time (in seconds) allowed for clients to authenticate
+LoginGraceTime {{ ssh_login_grace_time }}
+# Disallow root login over SSH for security
+PermitRootLogin no
+# Enable strict mode (checks file/directory permissions and ownership of user's files)
+StrictModes yes
+# Maximum number of authentication attempts permitted per connection
+MaxAuthTries {{ ssh_max_auth_tries }}
+# Maximum number of open sessions permitted per network connection
+MaxSessions {{ ssh_max_sessions }}
+
+# Only allow public key authentication (no passwords)
+PubkeyAuthentication yes
+# File containing authorized public keys for users
+AuthorizedKeysFile .ssh/authorized_keys
+# Disable password authentication entirely
+PasswordAuthentication no
+# Do not allow empty passwords
+PermitEmptyPasswords no
+# Disable challenge-response authentication (e.g., keyboard-interactive)
+ChallengeResponseAuthentication no
+
+# Enable Pluggable Authentication Modules (PAM) for additional authentication policies
+UsePAM yes
+
+# Forwarding — agent forwarding required for hopping to cluster nodes;
+# Allow agent forwarding if enabled (required for hopping to cluster nodes)
+AllowAgentForwarding {{ 'yes' if enable_ssh_agent_forwarding else 'no' }}
+# TCP forwarding must be enabled for ProxyJump (-J) to work; X11 is disabled to minimize attack surface
+AllowTcpForwarding yes
+X11Forwarding no
+
+# Session keepalive settings
+# Disconnect idle sessions after (interval * count_max) seconds
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# Restrict SSH access to allowed users only (if list is provided)
+{% if ssh_allowed_users | length > 0 %}
+# Only allow SSH login for these users
+AllowUsers {{ ssh_allowed_users | join(' ') }}
+{% endif %}
+
+# Print last login information on login
+PrintLastLog yes

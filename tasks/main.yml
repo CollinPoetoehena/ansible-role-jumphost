@@ -1,0 +1,19 @@
+---
+# tasks file for roles/jump_host
+
+- name: Minimize attack surface
+  ansible.builtin.import_tasks: minimal_packages.yml
+  tags: [packages, hardening]
+
+- name: Configure SSH hardening
+  ansible.builtin.import_tasks: ssh_hardening.yml
+  tags: [ssh, hardening]
+
+- name: Configure firewall rules
+  ansible.builtin.import_tasks: firewall.yml
+  tags: [firewall]
+
+- name: Configure audit logging
+  ansible.builtin.include_tasks: audit_logging.yml
+  when: enable_ssh_audit_logging | bool
+  tags: [logging, audit]

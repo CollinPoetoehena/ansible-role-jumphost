@@ -1,0 +1,18 @@
+---
+# Minimize the attack surface of the jumphost
+
+- name: Remove unnecessary packages
+  ansible.builtin.package:
+    name: "{{ jumphost_unnecessary_packages }}"
+    state: absent
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Disable unnecessary services if present
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop: "{{ jumphost_unnecessary_services }}"
+  when: (item + '.service') in ansible_facts.services

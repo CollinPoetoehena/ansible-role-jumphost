@@ -1,0 +1,28 @@
+---
+# defaults file for roles/jump_host
+
+# Jump host OS user
+jump_host_user: "azureuser"
+
+# SSH configuration
+jump_host_ssh_keys_path: "/home/{{ jump_host_user }}/.ssh"
+# Required for Ansible control node to access cluster nodes via jump host
+enable_ssh_agent_forwarding: true
+# Users allowed to log in via SSH; empty list allows all users
+ssh_allowed_users:
+  - "{{ jump_host_user }}"
+
+# Bastion security hardening
+ssh_max_sessions: 10
+ssh_login_grace_time: 60
+ssh_max_auth_tries: 3
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# Logging and auditing
+enable_ssh_audit_logging: true
+# Must be under /var/log/ (var_log_t SELinux context). /var/log/audit/ uses the
+# auditd_log_t context which SELinux policy does not allow rsyslog (syslogd_t) to
+# write to — writes there fail silently. 
+# So, use the /var/log directory for the SSH audit log since it is known to be writable and working with this role.
+audit_log_path: "/var/log/ssh-audit.log"

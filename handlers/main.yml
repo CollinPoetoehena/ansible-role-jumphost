@@ -1,0 +1,28 @@
+---
+# handlers file for roles/jump_host
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+
+- name: Reload firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+
+- name: Reload audit rules
+  ansible.builtin.command:
+    cmd: augenrules --load
+  register: augenrules_result
+  changed_when: augenrules_result.rc == 0
+  # augenrules --load will fail with rc=1 if -e 2 (immutable mode) is already
+  # active from the current boot. Rules are correct on disk; a reboot will apply them.
+  # In other words, always consider this task successful, even if it returns an error code, because the rules are 
+  # already in place and will be active after a reboot if they can't be loaded now due to immutable mode. This ensures the playbook doesn't fail unnecessarily.
+  failed_when: false
+
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted

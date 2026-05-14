@@ -1,0 +1,49 @@
+---
+# Firewall tasks for jumphost
+# NOTE: this role assumes you use an Azure environment, so the subnet (or another network level) 
+# should have an NSG with appropriate rules, such as only allowing access from a specific subnet, etc.
+# These firewall configurations are meant to be a secondary layer of defense, not the primary one, so they 
+# are kept simple and not too restrictive.
+
+- name: Ensure firewalld is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld is enabled and started
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+# Specific rule to restrict SSH access to only a known IP address (e.g. an administrator's IP)
+# /32 is used to specify a single IP address, ensuring it is always just this one IP that can access SSH, 
+# regardless of the subnet mask of the variable provided.
+- name: Allow SSH only from specific IP
+  firewalld:
+    rich_rule: 'rule family="ipv4" source address="{{ ssh_allowed_ip }}/32" service name="ssh" accept'
+    permanent: true
+    state: enabled
+    immediate: true
+
+# This allows SSH but only ssh_max_sessions connection attempts per minute
+# Slows down brute‑force attacks. Works even if NSG is misconfigured
+# Protects against internal lateral movement
+- name: Add rate limiting
+  firewalld:
+    rich_rule: 'rule service name="ssh" limit value="{{ ssh_max_sessions }}/m" accept'
+    permanent: true
+    state: enabled
+    immediate: true
+
+# Old setup (kept as a reference only), above setup is enough: deny-all baseline firewall zone:
+# Removed because: SSH breaks after this because your firewalld rules are added to the wrong zone, and then you set the default zone to drop, which silently discards SSH. In short: allow‑SSH rules end up in public, but the active zone becomes drop, so nothing lets SSH through.
+# You can check the firewall zones with `sudo su` to become root and then: `firewall-cmd --get-default-zone` and `firewall-cmd --get-active-zones` and `firewall-cmd --list-all` to see which rules are in which zones, and how the default zone is set
+# # Setting the default zone to "drop" turns the firewall into a deny‑all baseline.
+# # Any inbound traffic that does not explicitly match an allow rule is silently discarded.
+# # - No response is sent back (unlike REJECT), making the host harder to scan or fingerprint.
+# # - Protects against accidental service exposure (e.g., if a package opens a port).
+# # - Ensures that only explicitly allowed services (like SSH) are reachable.
+# # - Provides defense‑in‑depth even if Azure NSG rules are misconfigured.
+# - name: Set default firewalld zone to drop
+#   command: firewall-cmd --set-default-zone=drop
