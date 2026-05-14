@@ -21,4 +21,4 @@ ssh_client_alive_count_max: 2
 
 # Logging and auditing
 enable_ssh_audit_logging: true
-audit_log_path: "/var/log/ssh-audit.log"
+audit_log_path: "/var/log/audit/ssh-audit.log"

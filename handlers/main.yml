@@ -14,7 +14,11 @@
 - name: Reload audit rules
   ansible.builtin.command:
     cmd: augenrules --load
-  changed_when: true
+  register: augenrules_result
+  changed_when: augenrules_result.rc == 0
+  # If -e 2 (immutable mode) is active, augenrules --load will be rejected by
+  # the kernel until the system is rebooted. Treat this as a non-fatal warning.
+  failed_when: false
 
 - name: Restart rsyslog
   ansible.builtin.service:
