@@ -11,15 +11,15 @@
     name: firewalld
     state: reloaded
 
-# Reloading of audit rules is required to apply changes immediately without waiting for a reboot.
-# This ensures that any new audit rules we add take effect right away, providing continuous security monitoring.
 - name: Reload audit rules
   ansible.builtin.command:
     cmd: augenrules --load
   register: augenrules_result
   changed_when: augenrules_result.rc == 0
-  # If -e 2 (immutable mode) is active, augenrules --load will be rejected by
-  # the kernel until the system is rebooted. Treat this as a non-fatal warning.
+  # augenrules --load will fail with rc=1 if -e 2 (immutable mode) is already
+  # active from the current boot. Rules are correct on disk; a reboot will apply them.
+  # In other words, always consider this task successful, even if it returns an error code, because the rules are 
+  # already in place and will be active after a reboot if they can't be loaded now due to immutable mode. This ensures the playbook doesn't fail unnecessarily.
   failed_when: false
 
 - name: Restart rsyslog

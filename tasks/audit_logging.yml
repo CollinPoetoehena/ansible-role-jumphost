@@ -2,7 +2,7 @@
 # Audit logging tasks for jumphost
 # You can check logs after configuring this task with for example:
 #   `less /var/log/audit/audit.log` to see all audit logs
-#   `less /var/log/audit/ssh-audit.log` to see all SSH specific audit logs
+#   `less /var/log/ssh-audit.log` to see all SSH specific audit logs
 #   `sudo ausearch -k identity` to see all logs tagged with "identity" (e.g., changes to /etc/passwd and /etc/shadow)
 #   `sudo ausearch -k sudo` to see all logs tagged with "sudo" (e.g., sudo command executions and changes to sudoers)
 #   `sudo ausearch -k sshd` to see all logs tagged with "sshd" (e.g., changes to sshd_config)
@@ -132,6 +132,21 @@
       -e 2
   notify: Reload audit rules # Reload audit rules so they take effect immediately.
 
+# Flush handlers here so augenrules_result is available for the reboot check below.
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# If augenrules --load returned non-zero, -e 2 immutable mode was already active and
+# the kernel rejected the reload. A reboot is the only way to apply the new rules.
+# For example, this would be needed if the jumphost has been running for a while and audit rules 
+# were updated by this playbook, but the system has not been rebooted since then. In that case, the
+# new rules are on disk but not active until a reboot.
+- name: Reboot to apply new audit rules if immutable mode was active
+  ansible.builtin.reboot:
+    msg: "Rebooting to apply updated audit rules (audit immutable mode was active)"
+    reboot_timeout: 300
+  when: augenrules_result is defined and augenrules_result.rc != 0
+
 # Ensure the SSH audit log file exists and has correct permissions. This is where the rsyslog configuration will forward
 # SSH-related logs, keeping them separate from the main audit log (/var/log/audit/audit.log) for easier analysis.
 - name: Ensure SSH audit log directory exists
@@ -140,7 +155,8 @@
     state: directory
     owner: root
     group: root
-    mode: "0700" # Match auditd's default — root-only access
+    # No mode set: won't modify permissions on existing dirs (e.g. /var/log).
+    # New directories are created with the system default (0755).
 
 - name: Ensure SSH audit log file exists
   ansible.builtin.file:

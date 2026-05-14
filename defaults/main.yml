@@ -21,4 +21,8 @@ ssh_client_alive_count_max: 2
 
 # Logging and auditing
 enable_ssh_audit_logging: true
-audit_log_path: "/var/log/audit/ssh-audit.log"
+# Must be under /var/log/ (var_log_t SELinux context). /var/log/audit/ uses the
+# auditd_log_t context which SELinux policy does not allow rsyslog (syslogd_t) to
+# write to — writes there fail silently. 
+# So, use the /var/log directory for the SSH audit log since it is known to be writable and working with this role.
+audit_log_path: "/var/log/ssh-audit.log"
