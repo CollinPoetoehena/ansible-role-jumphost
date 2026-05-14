@@ -11,6 +11,8 @@
     name: firewalld
     state: reloaded
 
+# Reloading of audit rules is required to apply changes immediately without waiting for a reboot.
+# This ensures that any new audit rules we add take effect right away, providing continuous security monitoring.
 - name: Reload audit rules
   ansible.builtin.command:
     cmd: augenrules --load

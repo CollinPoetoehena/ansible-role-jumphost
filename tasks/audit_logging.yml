@@ -132,7 +132,7 @@
       -e 2
   notify: Reload audit rules # Reload audit rules so they take effect immediately.
 
-# Ensure the SSH audit log file exists and has correct permissions. This is where the rsyslog configuration will forward 
+# Ensure the SSH audit log file exists and has correct permissions. This is where the rsyslog configuration will forward
 # SSH-related logs, keeping them separate from the main audit log (/var/log/audit/audit.log) for easier analysis.
 - name: Ensure SSH audit log directory exists
   ansible.builtin.file:
@@ -140,7 +140,17 @@
     state: directory
     owner: root
     group: root
-    mode: "0750"
+    mode: "0700" # Match auditd's default — root-only access
+
+- name: Ensure SSH audit log file exists
+  ansible.builtin.file:
+    path: "{{ audit_log_path }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0640"
+    modification_time: preserve # Idempotent: only creates the file if absent
+    access_time: preserve
 
 - name: Deploy rsyslog config to forward SSH logs to dedicated audit file
   ansible.builtin.template:
