@@ -63,3 +63,196 @@ Example playbook using this role (e.g. site.yml):
   roles:
     - role: jumphost
 ```
+
+### Example 
+Below is an example demonstrating how the role operates in practice, including how you can verify and present proof of SSH audit logging in action. This shows what you would see after applying the role, both for validation/testing of the role (i.e. showing the expected behavior) and for documentation purposes:
+
+Initial rollout without reboot (note that it calls site.yml which was just an example playbook that includes the jumphost role, the content of site.yml is not important here, just that it includes the jumphost role and is run with the appropriate vault password file to access the ssh_allowed_ip variable):
+```sh
+ansible-playbook -i hosts site.yml --tags jumphost --vault-password-file ~/.vault_pass.txt
+
+PLAY [Configure Jump Host (Bastion)] *******************************************************************************************************************************************************************
+
+TASK [jumphost : Remove unnecessary packages] **********************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Gather service facts] *****************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Disable unnecessary services if present] **********************************************************************************************************************************************
+skipping: [20.127.29.83] => (item=avahi-daemon) 
+skipping: [20.127.29.83] => (item=cups) 
+skipping: [20.127.29.83] => (item=rpcbind) 
+skipping: [20.127.29.83] => (item=nfs-server) 
+skipping: [20.127.29.83]
+
+TASK [jumphost : Ensure .ssh directory exists with correct permissions] ********************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Deploy hardened sshd_config (the configuration used by SSH daemon)] *******************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Ensure sshd is enabled and started] ***************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure firewalld is installed] ********************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure firewalld is enabled and started] **********************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Allow SSH only from specific IP] ******************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Add rate limiting] ********************************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Configure audit logging] **************************************************************************************************************************************************************
+included: /home/poetoec/projects/personal/k8s-lab/ansible/roles/jumphost/tasks/audit_logging.yml for 20.127.29.83
+
+TASK [jumphost : Ensure audit and rsyslog packages are installed] **************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure rsyslog is running] ************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure auditd is running] *************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Deploy audit rules] *******************************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Flush handlers] ***********************************************************************************************************************************************************************
+
+RUNNING HANDLER [jumphost : Restart sshd] **************************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+RUNNING HANDLER [jumphost : Reload audit rules] ********************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Reboot to apply new audit rules if immutable mode was active] *************************************************************************************************************************
+skipping: [20.127.29.83]
+
+TASK [jumphost : Ensure SSH audit log directory exists] ************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure SSH audit log file exists] *****************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Deploy rsyslog config to forward SSH logs to dedicated audit file] ********************************************************************************************************************
+changed: [20.127.29.83]
+
+RUNNING HANDLER [jumphost : Restart rsyslog] ***********************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [Display jump host information] *******************************************************************************************************************************************************************
+ok: [20.127.29.83] => {
+    "msg": [
+        "Jump host (bastion) configuration completed successfully",
+        "SSH access gateway is ready",
+        "Use this host to securely access the mgmt-vm"
+    ]
+}
+
+PLAY RECAP *********************************************************************************************************************************************************************************************
+20.127.29.83               : ok=21   changed=9    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+```
+
+Verification of SSH audit logging:
+```sh
+[azureuser@jumphost ~]$ sudo su
+[root@jumphost azureuser]# cat /var/log/ssh-audit.log 
+May 14 14:34:16 jumphost sshd[7047]: Connection from 77.165.126.69 port 55856 on 10.10.1.4 port 22 rdomain ""
+May 14 14:34:17 jumphost sshd[7047]: Accepted key RSA SHA256:ROG4Um0kw0bEc4i7rn6G0zhQ6i84gUGliHOPwTjnZl4 found at /home/azureuser/.ssh/authorized_keys:1
+May 14 14:34:17 jumphost sshd[7047]: Postponed publickey for azureuser from 77.165.126.69 port 55856 ssh2 [preauth]
+May 14 14:34:17 jumphost sshd[7047]: Accepted key RSA SHA256:ROG4Um0kw0bEc4i7rn6G0zhQ6i84gUGliHOPwTjnZl4 found at /home/azureuser/.ssh/authorized_keys:1
+May 14 14:34:17 jumphost sshd[7047]: Accepted publickey for azureuser from 77.165.126.69 port 55856 ssh2: RSA SHA256:ROG4Um0kw0bEc4i7rn6G0zhQ6i84gUGliHOPwTjnZl4
+May 14 14:34:17 jumphost sshd[7047]: pam_unix(sshd:session): session opened for user azureuser(uid=1000) by azureuser(uid=0)
+May 14 14:34:17 jumphost sshd[7047]: User child is on pid 7050
+May 14 14:34:17 jumphost sshd[7050]: Starting session: shell on pts/0 for azureuser from 77.165.126.69 port 55856 id 0
+```
+
+Final verification: Changing rules in audit_logging.yml and rerunning the role to trigger the reboot task if immutable mode is active (using the same command and setup as before to run the playbook):
+```sh
+ansible-playbook -i hosts site.yml --tags jumphost --vault-password-file ~/.vault_pass.txt
+
+PLAY [Configure Jump Host (Bastion)] *******************************************************************************************************************************************************************
+
+TASK [jumphost : Remove unnecessary packages] **********************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Gather service facts] *****************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Disable unnecessary services if present] **********************************************************************************************************************************************
+skipping: [20.127.29.83] => (item=avahi-daemon) 
+skipping: [20.127.29.83] => (item=cups) 
+skipping: [20.127.29.83] => (item=rpcbind) 
+skipping: [20.127.29.83] => (item=nfs-server) 
+skipping: [20.127.29.83]
+
+TASK [jumphost : Ensure .ssh directory exists with correct permissions] ********************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Deploy hardened sshd_config (the configuration used by SSH daemon)] *******************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure sshd is enabled and started] ***************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure firewalld is installed] ********************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure firewalld is enabled and started] **********************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Allow SSH only from specific IP] ******************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Add rate limiting] ********************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Configure audit logging] **************************************************************************************************************************************************************
+included: /home/poetoec/projects/personal/k8s-lab/ansible/roles/jumphost/tasks/audit_logging.yml for 20.127.29.83
+
+TASK [jumphost : Ensure audit and rsyslog packages are installed] **************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure rsyslog is running] ************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure auditd is running] *************************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Deploy audit rules] *******************************************************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Flush handlers] ***********************************************************************************************************************************************************************
+
+RUNNING HANDLER [jumphost : Reload audit rules] ********************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Reboot to apply new audit rules if immutable mode was active] *************************************************************************************************************************
+changed: [20.127.29.83]
+
+TASK [jumphost : Ensure SSH audit log directory exists] ************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Ensure SSH audit log file exists] *****************************************************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [jumphost : Deploy rsyslog config to forward SSH logs to dedicated audit file] ********************************************************************************************************************
+ok: [20.127.29.83]
+
+TASK [Display jump host information] *******************************************************************************************************************************************************************
+ok: [20.127.29.83] => {
+    "msg": [
+        "Jump host (bastion) configuration completed successfully",
+        "SSH access gateway is ready",
+        "Use this host to securely access the mgmt-vm"
+    ]
+}
+
+PLAY RECAP *********************************************************************************************************************************************************************************************
+20.127.29.83               : ok=20   changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+```
