@@ -2,7 +2,7 @@
 # Minimize the attack surface of the jumphost
 
 - name: Remove unnecessary packages
-  ansible.builtin.package:
+  ansible.builtin.package: # Use "package" module for generic package management (works with dnf, apt, etc.)
     name: "{{ jumphost_unnecessary_packages }}"
     state: absent
 

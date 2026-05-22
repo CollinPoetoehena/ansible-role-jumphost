@@ -6,7 +6,7 @@
 # are kept simple and not too restrictive.
 
 - name: Ensure firewalld is installed
-  ansible.builtin.package:
+  ansible.builtin.package: # Use "package" module for generic package management (works with dnf, apt, etc.)
     name: firewalld
     state: present
 

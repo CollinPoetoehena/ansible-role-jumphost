@@ -1,6 +1,8 @@
 ---
 # defaults file for roles/jump_host
 
+# TODO: make this similar to devhub/homelab/router role with the defaults and others
+
 # Jump host OS user
 jump_host_user: "azureuser"
 

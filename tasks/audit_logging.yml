@@ -14,7 +14,7 @@
 # And: ensure rsyslog is installed. This is the system logging daemon responsible
 # for collecting logs and forwarding them to remote destinations.
 - name: Ensure audit and rsyslog packages are installed
-  ansible.builtin.package:
+  ansible.builtin.package: # Use "package" module for generic package management (works with dnf, apt, etc.)
     name:
       - audit
       - rsyslog

@@ -1,6 +1,6 @@
-# jumphost
+# devhub-ansible-jumphost
 
-> Part of [dev-hub/Ansible](https://github.com/CollinPoetoehena/dev-hub/blob/main/Ansible.md) — see that file for conventions, structure guidelines, and the full role index.
+> Part of [DevHub/Ansible](https://github.com/CollinPoetoehena/DevHub/blob/main/packages/Ansible.md) — see that file for conventions, structure guidelines, and the full role index.
 
 Configures the bastion/jump host VM that serves as the secure entry point to the infrastructure. This role sets up SSH forwarding, access controls, and security hardening to provide safe gateway access to the private Kubernetes cluster network.
 
@@ -11,12 +11,17 @@ It has the following features:
 - **Firewall Rules**: Restrict inbound/outbound traffic to essential SSH connections only
 - **Minimal Attack Surface**: Keep installed packages and services to a minimum to reduce potential vulnerabilities
 
+> **User, group, sudo, and SSH key management are not part of this role.** Use the [devhub-ansible-users](https://github.com/CollinPoetoehena/devhub-ansible-users) role for that. Apply it alongside this role in your playbook (see example below).
+
 ## Requirements
 
-- Ansible 2.9 or higher
-- Target host running Enterprise Linux (RHEL, CentOS, AlmaLinux, Rocky Linux, etc.)
-- The `ansible.posix` collection: `ansible-galaxy collection install ansible.posix`
-- The `azureuser` account (or equivalent `jump_host_user`) must exist on the target host
+- **OS**: Any Linux distribution (RHEL/EL, Debian/Ubuntu, etc.), uses `ansible.builtin.package` for package management to support multiple distributions.
+- **Ansible**: 2.14+
+- **Collections**: `ansible.posix`
+  Install with:
+  ```sh
+  ansible-galaxy collection install ansible.posix
+  ```
 
 ## Variables
 
@@ -45,23 +50,39 @@ Requirements file example (same directory as ansible.cfg, create a file called r
 ```yaml
 ---
 roles:
-  - name: jumphost
-    src: https://github.com/CollinPoetoehena/ansible-role-jumphost.git
+  - name: devhub.jumphost
+    src: https://github.com/CollinPoetoehena/devhub-ansible-jumphost.git
     scm: git
-    version: v0.0.1
-``` 
+    version: 1.0.0
+  # User/group/sudo/SSH key management is handled by a separate role:
+  - name: devhub.users
+    src: https://github.com/CollinPoetoehena/devhub-ansible-users.git
+    scm: git
+    version: 1.0.0
+```
 
-Then install with: 
+Then install with:
 ```sh
 # NOTE: Example of roles path for -p is "roles/" (you can also specify this in ansible.cfg)
 ansible-galaxy install -r requirements.yml -p <path/to/roles>
 ```
 
 Example playbook using this role (e.g. site.yml):
+
+> **Note:** User, group, sudo, and SSH key management are handled by [devhub-ansible-users](https://github.com/CollinPoetoehena/devhub-ansible-users).  
+> Variables and usage examples for that role are intentionally omitted here — keeping them in one place avoids duplication and means only that role's README needs updating if its interface changes.
+
 ```yaml
-- hosts: all
+---
+- hosts: jumphost
+  become: true
+  vars:
+    jump_host_user: azureuser
+    ssh_allowed_ip: "{{ vault_ssh_allowed_ip }}"  # load from vault
+
   roles:
-    - role: jumphost
+    - role: devhub.jumphost  # hardens SSH, firewall, audit logging
+    - role: devhub.users     # manages OS users, groups, sudo, and SSH keys (see devhub-ansible-users)
 ```
 
 ### Example 
@@ -150,7 +171,7 @@ ok: [20.127.29.83] => {
     "msg": [
         "Jump host (bastion) configuration completed successfully",
         "SSH access gateway is ready",
-        "Use this host to securely access the mgmt-vm"
+        "Use this host to securely access the mgmtvm"
     ]
 }
 
@@ -249,7 +270,7 @@ ok: [20.127.29.83] => {
     "msg": [
         "Jump host (bastion) configuration completed successfully",
         "SSH access gateway is ready",
-        "Use this host to securely access the mgmt-vm"
+        "Use this host to securely access the mgmtvm"
     ]
 }
 
